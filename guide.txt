@@ -1,0 +1,165 @@
+WP-II TEMPLATE - FRESH PC GUIDE (after unzipping)
+=================================================
+Use PowerShell. Every command is run from the template root (the folder
+that contains package.json, server and client) unless stated otherwise.
+
+
+PART A - ONE-TIME SETUP
+-----------------------
+
+STEP 1. Go to the template root
+    cd C:\wp2
+    dir
+  If dir shows only a "wp2-template" folder, go inside it:
+    cd wp2-template
+  Confirm you are in the right place (must print True three times):
+    Test-Path package.json, server\package.json, client\package.json
+
+STEP 2. Check Node and npm
+    node -v
+    npm -v
+  Node must be 18 or higher. If "node" is not found, install the Node LTS
+  version from nodejs.org, then OPEN A NEW PowerShell window and re-check.
+  If npm says "running scripts is disabled", run this once and retry:
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+STEP 3. Make sure MongoDB is installed and running
+    Get-Service MongoDB
+  - Running  : go to Step 4.
+  - Stopped  : open PowerShell as Administrator and run
+                 Start-Service MongoDB
+               then check again.
+  - Not found: MongoDB is not installed. Install MongoDB Community Server
+               from mongodb.com, choose "Install as a Service", then
+               re-run this step.
+  Confirm the port responds:
+    Test-NetConnection localhost -Port 27017
+  You want: TcpTestSucceeded : True
+  (mongosh is a separate download and may not be installed. Do not rely on it.)
+
+STEP 4. Install all dependencies (needs internet, takes a few minutes)
+    npm run setup
+  Warnings are fine. Red errors are not. Afterwards confirm:
+    Test-Path node_modules, server\node_modules, client\node_modules
+  Any False means the install did not finish: run npm run setup again.
+
+STEP 5. Smoke-test the untouched template (recommended, 2 minutes)
+    npm run seed
+    npm run dev
+  Open http://localhost:5173 and check the login page loads.
+  Stop the app with Ctrl+C before editing anything.
+  If this works, the machine is ready and any later problem is in your edits.
+
+
+PART B - ADAPT THE TEMPLATE TO THE PROBLEM STATEMENT
+----------------------------------------------------
+
+STEP 6. Write the plan on paper first (2 minutes)
+  - Roles (e.g. Organizer / Student)
+  - Item entity: what the admin role adds, edits, deletes
+  - Record entity: what a user creates against an item (book, buy, register)
+  - Fields for each, which are required, the search field, the date field
+  - Does the problem need login at all?
+
+STEP 7. Edit these files, in this order, and SAVE each one
+  1) server\config.js
+       roles, adminRole, defaultRole
+       items.required, items.dateField, items.numericField
+       records.required, records.dateField
+       authEnabled (only if there is no login)
+  2) client\src\config.js
+       APP_TITLE
+       ROLES, ADMIN_ROLE, DEFAULT_ROLE   (must match the server exactly,
+                                          same spelling and capitals)
+       LABELS
+       ITEM_TITLE_FIELD
+       ITEM_FIELDS, RECORD_FIELDS
+       PERMISSIONS (only if users cannot create/edit records)
+       ENTITIES: delete the "extras" line if the problem does not need it
+  3) server\seed.js
+       users   (at least one per role, role spelled exactly as in config)
+       items   (field names exactly as in config)
+       records (user and item are ARRAY POSITIONS starting at 0 - make sure
+                they exist; status values must match the client options)
+       extras can stay as is.
+  4) Login page hint (do this last)
+       Find it:
+         Select-String -Path client\src\*,client\src\*\* -Pattern "admin1@test.com" -SimpleMatch
+       Update the "Demo:" text to your new seed users, or delete it.
+
+STEP 8. Consistency check before running
+  - Field names identical in seed.js, server\config.js, client\src\config.js
+  - Every server "required" field is in the client field list with
+    required: true
+  - Roles identical in server config, client config and seed users
+  - Status/select defaults are valid options (and same capitalization)
+  - records.required only lists what the user types (userId and itemId are
+    attached automatically)
+
+
+PART C - RUN AND VERIFY
+-----------------------
+
+STEP 9. Stop any running app (Ctrl+C), then seed
+    npm run seed
+  Expect "MongoDB connected", the document counts for your entities,
+  then "Seed complete".
+  The database (wp2db) is created automatically on the first seed. No
+  separate create step. The seed empties each collection first, so
+  re-running it resets the data without duplicates.
+
+STEP 10. Start the app
+    npm run dev
+  Server on port 5000, client on http://localhost:5173. Leave it running.
+
+STEP 11. Check the API (open a second PowerShell window in the same folder)
+    curl.exe -i http://localhost:5000/api/items
+  Expect 200 and your seeded items.
+
+STEP 12. Test in the browser (F12 open, Console tab - red errors = problem)
+  As the admin role:
+    - add an item (leave a required field empty: it must be blocked)
+    - edit it, delete it, refresh and confirm the delete stuck
+    - search for part of a name in lowercase
+    - open the all-records page, filter by date
+  As the user role:
+    - browse and search items (no add/edit/delete buttons)
+    - create a record, edit it, cancel it
+    - try an admin URL directly: must be blocked
+  Refresh while logged in: should stay logged in.
+
+
+AFTER ANY LATER EDIT
+--------------------
+  Ctrl+C
+  npm run seed
+  npm run dev
+  (Config changes need a restart. Seed changes need a re-seed.)
+
+
+COMMON PROBLEMS
+---------------
+  "Could not read package.json"   Wrong folder. cd into the folder that
+                                  contains server and client.
+  "MongoDB not reachable"         Service not running (Step 3).
+  Port 5000 or 5173 in use        An old npm run dev is still running.
+                                  Close that terminal.
+  Old data after an edit          Seed was not re-run (Step 9).
+  Config change has no effect     App was not restarted.
+  Blank names or columns          A field name is spelled differently
+                                  between seed and the two configs.
+  Cannot log in                   Roles differ between configs or seed,
+                                  or you are using old demo credentials.
+  A registration/record fails     Server records.required lists a field the
+  with 400                        form does not have.
+  Some records look broken        user/item position in seed.js is out of
+                                  range for the arrays.
+
+
+KNOWN LIMITS OF THE TEMPLATE
+----------------------------
+  - Creating a record does not update the item (a slot's status, a book's
+    stock). Edit the item by hand during the demo if needed.
+  - A user seeing only their own data on some pages may need a filter.
+  - A third entity: reuse "extras" (rename its config blocks and keep its
+    ENTITIES line) instead of deleting it.

@@ -1,0 +1,21 @@
+{
+  "name": "wp2-server",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "mongodb": "^6.21.0",
+    "wp2-template": "file:.."
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
